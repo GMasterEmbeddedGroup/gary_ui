@@ -6,13 +6,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-# @dataclass()
+@dataclass(frozen=True)
 class GraphicBasic:
     name: bytes  # XXX: 添加 default_factory 默认值工厂函数
-    graphic_type: int
+    # graphic_type: int
     colour: int
     width: int  # 宽度, 范围是 0~9
-    layout: int = 8  # 图层 (范围 0~9)
+    layout: int  # 图层 (范围 0~9)
 
     def __post_init__(self):
         """

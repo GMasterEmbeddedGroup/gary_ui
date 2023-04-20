@@ -24,7 +24,7 @@ from typing import Union
 #         } graphic_data_struct_t
 
 
-def encode_basic(data: array, mode, obj: GraphicBasic) -> int:
+def encode_basic(data: array, mode, obj: Union[Line, Rectangle, Cycle, Float]) -> int:
     """
     转换图形结构的基础内容: 向 data 填入图形名称, 返回前 4 字节中的前 14 位数字 (包含 操作模式, 图形类型, 图层号, 颜色)
     :param data:
@@ -44,12 +44,12 @@ def encode_basic(data: array, mode, obj: GraphicBasic) -> int:
             raise ValueError('need integer 0~3, or string ("empty", "add", "modify", "delete")') from err
     val = mode
     # -- bit 3-5: 图形类型
-    val = val << 3 + obj.graphic_type
+    val = (val << 3) + obj.graphic_type
     # -- bit 6-9: 图层数, 0~9
-    val = val << 4 + obj.layout
+    val = (val << 4) + obj.layout
     # -- bit 10-13: 颜色
-    val = val << 4 + obj.colour
-    # Note: 位移运算符比加号的优先级高……
+    val = (val << 4) + obj.colour
+    # Note: 位移运算符比加号的优先级低!!! 我可去你的吧 CSDN
     return val
 
 
@@ -71,18 +71,18 @@ def encode_line(mode: Union[int, str], line: Line) -> array:
     # -- bit 0-9: 线宽
     val = line.width
     # -- bit 10-20: 起点 x 坐标
-    val = val << 11 + line.start_x
+    val = (val << 11) + line.start_x
     # -- bit 21-31: 起点 y 坐标
-    val = val << 11 + line.start_y
+    val = (val << 11) + line.start_y
     data.extend(val.to_bytes(4, "big"))
 
     # 3. 4 byte
     # -- bit 0-9: 字体大小或者半径
     val = 0
     # -- bit 10-20: 终点 x 坐标
-    val = val << 11 + line.end_x
+    val = (val << 11) + line.end_x
     # -- bit 21-31: 终点 y 坐标
-    val = val << 11 + line.end_y
+    val = (val << 11) + line.end_y
     data.extend(val.to_bytes(4, "big"))
 
     return data
@@ -102,13 +102,13 @@ def encode_rectangle(mode: Union[int, str], rectangle: Rectangle) -> array:
 
     # 2. 4 byte
     # -- bit 0-9: 线宽
-    val = ((rectangle.width << 11) + rectangle.start_x) << 11 + rectangle.start_y
+    val = (((rectangle.width << 11) + rectangle.start_x) << 11) + rectangle.start_y
     data.extend(val.to_bytes(4, "big"))
 
     # 3. 4 byte
     # -- bit 0-9: 字体大小或者半径
     # -- bit 10-20: 终点 x 坐标
-    val = rectangle.diagonal_vertex_x << 11 + rectangle.diagonal_vertex_y
+    val = (rectangle.diagonal_vertex_x << 11) + rectangle.diagonal_vertex_y
     data.extend(val.to_bytes(4, "big"))
 
     return data
@@ -128,7 +128,7 @@ def encode_cycle(mode: Union[int, str], cycle: Cycle) -> array:
 
     # 2. 4 byte
     # -- bit 0-9: 线宽
-    val = ((cycle.width << 11) + cycle.centre_x) << 11 + cycle.centre_y
+    val = (((cycle.width << 11) + cycle.centre_x) << 11) + cycle.centre_y
     data.extend(val.to_bytes(4, "big"))
 
     # 3. 4 byte
@@ -150,13 +150,13 @@ def encode_float(mode: Union[int, str], float_: Float) -> array:
     # 1. 4 byte
     val = encode_basic(data, mode, float_)
     # -- bit 14-22: 字体大小
-    val = val << 9 + float_.font_size
+    val = (val << 9) + float_.font_size
     # -- bit 23-31: 小数位有效个数
-    val = val << 9 + float_.significant_digits
+    val = (val << 9) + float_.significant_digits
     data.extend(val.to_bytes(4, "big"))
 
     # 2. 4 byte
-    val = ((float_.width << 11) + float_.start_x) << 11 + float_.start_y
+    val = (((float_.width << 11) + float_.start_x) << 11)+ float_.start_y
     data.extend(val.to_bytes(4, "big"))
 
     # 3. 4 byte

@@ -61,36 +61,17 @@ def byte_to_graph_data(hex_code: str):
 
     parts = []
     sta = 0
-    for i in (24, 3, 3, 4, 4, 9, 9, 10, 11, 11, 10, 11, 11)[::-1]:
+    for i in (24, 3, 3, 4, 4, 9, 9, 10, 11, 11, 10, 11, 11):
         parts.append(bin_code[sta: sta + i])
         sta += i
 
-    name_code = parts[-1]
-    name = "".join(chr(int(f"0b{i}", 2)) for i in (name_code[:8], name_code[8:16], name_code[16:24]))[::-1]
+    parts = iter(parts)
 
-    operate_type = int(f"0b{parts[-2]}", 2)
+    name_code = next(parts)
+    name = "".join(chr(int(i, 2)) for i in (name_code[:8], name_code[8:16], name_code[16:24]))
 
-    graphic_type = int(f"0b{parts[-3]}", 2)
-
-    layer = int(f"0b{parts[-4]}", 2)
-
-    color = int(f"0b{parts[-5]}", 2)
-
-    start_angle = int(f"0b{parts[-6]}", 2)
-
-    end_angle = int(f"0b{parts[-7]}", 2)
-
-    width = int(f"0b{parts[-8]}", 2)
-
-    start_x = int(f"0b{parts[-9]}", 2)
-
-    start_y = int(f"0b{parts[-10]}", 2)
-
-    radius = int(f"0b{parts[-11]}", 2)
-
-    end_x = int(f"0b{parts[-12]}", 2)
-
-    end_y = int(f"0b{parts[-13]}", 2)
+    (operate_type, graphic_type, layer, color, start_angle, end_angle,
+     width, start_x, start_y, radius, end_x, end_y) = (int(i, 2) for i in parts)
 
     return GraphData(name, operate_type, graphic_type, layer, color, start_angle, end_angle,
                      width, start_x, start_y, radius, end_x, end_y)
