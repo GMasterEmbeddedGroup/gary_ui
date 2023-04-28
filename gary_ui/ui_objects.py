@@ -3,7 +3,16 @@
 """
 from __future__ import annotations
 
+from array import array
 from dataclasses import dataclass
+from itertools import combinations_with_replacement
+
+
+def get_name_generator(word_range: bytes = bytes(range(ord('a'), ord('z') + 1))):
+    """
+    生成一个迭代器, 这个迭代器可以通过排列组合生成有效的字符名称.
+    """
+    return combinations_with_replacement(word_range, 3)
 
 
 @dataclass(frozen=True)
@@ -69,3 +78,29 @@ class Float(GraphicBasic):
     significant_digits: int
     value: float
     graphic_type = 3
+
+
+@dataclass()
+class Sentence:
+    """
+    字符, 注意此类型不是 GraphicBasic 的子类, 且值可变
+    """
+    name: bytes  # XXX: 添加 default_factory 默认值工厂函数
+    colour: int
+    width: int  # 宽度, 范围是 0~9
+    layout: int  # 图层 (范围 0~9)
+    start_x: int
+    start_y: int
+    font_size: int
+
+    graphic_type: int
+    string: array
+    length: None | int = None
+    graphic_type = 7
+
+    def __post_init__(self):
+        assert self.string.typecode == "B", TypeError("Sentence.string should be B-type array.")
+        assert self.length is None or self.length > len(self.string), ValueError(
+            "Sentence object property `length` can't > len(self.string). Need < %d, got %d.",
+            (len(self.string), self.length))
+        assert len(self.string) <= 30, ValueError("The string of sentence can't longer than 30.")

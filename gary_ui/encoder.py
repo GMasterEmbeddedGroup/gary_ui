@@ -1,10 +1,10 @@
 """
 将图像类转换为数据
 """
-from .ui_objects import GraphicBasic, Line, Rectangle, Cycle, Float
-
 from array import array
 from typing import Union
+
+from .ui_objects import Line, Rectangle, Cycle, Float, Sentence
 
 
 # typedef __packed struct{
@@ -24,7 +24,8 @@ from typing import Union
 #         } graphic_data_struct_t
 
 
-def encode_basic(data: array, mode, obj: Union[Line, Rectangle, Cycle, Float]) -> int:
+def encode_basic(data: array, mode: Union[str, int],
+                 obj: Union[Line, Rectangle, Cycle, Float, Sentence]) -> int:
     """
     转换图形结构的基础内容: 向 data 填入图形名称, 返回前 4 字节中的前 14 位数字 (包含 操作模式, 图形类型, 图层号, 颜色)
     :param data:
@@ -156,11 +157,39 @@ def encode_float(mode: Union[int, str], float_: Float) -> array:
     data.extend(val.to_bytes(4, "big"))
 
     # 2. 4 byte
-    val = (((float_.width << 11) + float_.start_x) << 11)+ float_.start_y
+    val = (((float_.width << 11) + float_.start_x) << 11) + float_.start_y
     data.extend(val.to_bytes(4, "big"))
 
     # 3. 4 byte
     val = int(round(float_.value, 4) * 1000) % (2 ** 31) * (-1 if val < 0 else 1)
     data.extend(val.to_bytes(4, "big"))
+
+    return data
+
+
+def encode_sentence(mode: Union[int, str], sentence: Sentence) -> array:
+    """
+    将 Sentence 对象转码为绘制命令
+    """
+    data = array("B", [])
+    # 1. 4 byte
+    val = encode_basic(data, mode, sentence)
+    # -- bit 14-22: 字体大小 and 字符长度
+    val = (((val << 9) + sentence.font_size) << 9) + sentence.length
+    data.extend(val.to_bytes(4, "big"))
+
+    # 2. 4 byte
+    val = (((sentence.width << 11) + sentence.start_x) << 11) + sentence.start_y
+    data.extend(val.to_bytes(4, "big"))
+
+    # 3. 4 byte
+    data.extend(bytes(4))
+
+    # 4. the words
+    data.extend(sentence.string[:sentence.length])
+    # 补全剩余长度
+    sentence_length = len(sentence.string) if sentence.length is None else sentence.length
+    if sentence_length < 30:
+        data.extend(bytes(30 - sentence_length))
 
     return data

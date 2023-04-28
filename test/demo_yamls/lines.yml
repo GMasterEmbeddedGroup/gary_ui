@@ -1,0 +1,20 @@
+__missing__:
+  name: ~
+  width: 1
+  colour: 8
+  layout: 8
+  show: true
+
+ui_demo_0:
+  type: "line"
+  start_x: 100
+  start_y: 100
+  end_x: 600
+  end_y: 700
+
+ui_demo_1:
+  type: "cycle"
+  start_x: "ui_demo_0.start_x + 100"
+  start_y: "ui_demo_0.end_y"
+  end_x: "ui_demo_1.start_x - 100"
+  end_y: "ui_demo_1.start_y + 100"
