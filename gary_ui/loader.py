@@ -127,10 +127,12 @@ class UiDescription:
 
         return
 
-    def get_attr_from_val(self, object_values: Union[dict[str: Any], UiObject], key: str):
+    def get_attr_from_val(self, object_values: Union[dict[str: Any], UiObject, Callable], key: str):
         """
         从 UI 描述中返回 key 对应的属性值 (其实就是多了个 missing_map 查询)
         """
+        if callable(object_values):
+            object_values = object_values()
         if isinstance(object_values, UiObject):
             object_values = UiObject.value
         return object_values[key] if key in object_values else self.missing_map[key]
@@ -152,83 +154,20 @@ class UiDescription:
         """
         将 类shell 表达式转换为新的属性, 特殊处理了括号第一个元素为操作符的情况
         """
-        if m := self.RE_READ.match(statement):
-            sta, mid, end = m.groups()
-            call = self.read_shell_like_statement(mid)
-            if sta and end:  # a + (XXX) - b
-                sta_statements_list = list(shlex.shlex(sta))
-                end_statements_list = list(shlex.shlex(end))
-
-                left_o = sta_statements_list[-1]
-                right_o = end_statements_list[0]
-
         statements = shlex.shlex(statement)
-        return self._read_shell_like_statements(statements)
-
-    def _read_shell_like_statements(self, statements: SupportsNext[str]) -> Callable:
-        """
-        将 类shell 表达式转换为新的属性, 特殊处理了第一个元素为操作符的情况
-        """
-        first = next(statements)
-        if first in self.STATEMENT_OPERATORS:
-            statements = chain((None, first), statements)
-        return self._read_shell_like_statement(statements, first)
-
-    def _read_shell_like_statement(self, statements: SupportsNext[str],
-                                   last_value: Union[str, partial, CallChain, ReturnValue],
-                                   last_operator_precedence=-1) -> (Callable, Optional[SupportsNext]):
-        """
-        将 类shell 表达式转换为新的属性
-        """
-        try:
-            this_operator_func, this_operator_precedence = self.STATEMENT_OPERATORS[next(statements)]
-        except StopIteration:
-            return (self.read_base_shell_like_statement(last_value) if isinstance(last_value, str) else last_value,
-                    None)
-        except KeyError as err:
-            raise ValueError("Unknown operator:", err.args[0])
-
-        try:
-            this_value = next(statements)
-        except StopIteration:
-            return partial(this_operator_func, last_value, None), None
-
-        try:
-            next_symbol = next(statements)
-        except StopIteration:
-            return partial(this_operator_func, last_value, this_value), None
-
-        assert next_symbol in self.STATEMENT_OPERATORS
-
-        next_operator_func, next_operator_precedence = self.STATEMENT_OPERATORS[next_symbol]
-        if next_operator_precedence > this_operator_precedence:
-            next_symbol, statements = self._read_shell_like_statement(statements, this_value, this_operator_precedence)
-        elif next_operator_precedence <= last_operator_precedence:
-            this_value = self.read_base_shell_like_statement(last_value)
-            return partial(this_operator_func, last_value(this_value)), statements
-        return self._read_shell_like_statement(statements,
-                                               partial(this_operator_func, last_value, this_value))
-
-        # TODO: 1
-
-    @staticmethod
-    def read_base_shell_like_statement(statement: str) -> ReturnValue:
-        if statement.isnumeric():
-            return ReturnValue(int(statement))
-        raise
-
-    def description_to_ui_object(self, obj_name, obj_value) -> UiObject:
-        """
-
-        """
-        values = self.missing_map.copy()
-        values.update(obj_value)
-        obj_type = values["type"]
-        assert obj_type is self.BASIC_UI_WIDGETS, NotImplementedError
-        assert all(isinstance(values[key], (int, float)) for key in ())
-        order = 0 if obj_type in self.BASIC_UI_WIDGETS else 100
-        depends = []
-        return UiObject(obj_name, obj_value, order, depends)
+        statements_new = []
+        mapping = {}
+        name_generator = get_name_generator()
+        for char in statements:
+            if char == "." and not statements_new[-1].isnumeric():
+                name = next(name_generator)
+                mapping[name] = partial(self.get_attr_from_val,
+                                        partial(self.ui_objects.get, statements_new[-1]),
+                                        next(statements))
+                statements_new[-1] = name + "()"
+            else:
+                statements_new.append(char)
+        return partial(eval, "".join(statements_new), None, mapping)
 
 
 class Loader:
