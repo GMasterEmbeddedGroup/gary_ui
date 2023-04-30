@@ -7,21 +7,18 @@
 Yaml 文件的加载器
 
 """
-from _typeshed import SupportsNext
-
-from .ui_objects import Line, Cycle, Float, Rectangle, Sentence, get_name_generator
+import itertools
+import os
+import re
+from collections import OrderedDict
+from dataclasses import dataclass
+from functools import partial
+from subprocess import getoutput as get_output  # 强迫症行为
+from typing import Iterable, Optional, Callable, Any, Union
 
 import yaml
 
-import os
-import re
-import shlex
-from itertools import chain
-from functools import partial
-from dataclasses import dataclass
-from collections import OrderedDict
-from subprocess import getoutput as get_output  # 强迫症行为
-from typing import Iterable, Optional, Callable, Any, Union
+from .ui_objects import Line, Cycle, Float, Rectangle, Sentence, get_name_generator, WidgetBasic
 
 
 @dataclass()
@@ -36,6 +33,9 @@ class UiObject:
 
     def __lt__(self, other):
         return self.load_order > other.load_order
+
+    def __getattr__(self, item):
+        return self.value[item]
 
 
 def get_topic(name):
@@ -93,39 +93,52 @@ class UiDescription:
 
     RE_TOPIC = re.compile(r"^%(.+)$")
     RE_COMMAND = re.compile(r"^!(.+)$")
+    RE_PYTHON = re.compile(r"^\$(.+)$")
     RE_READ = re.compile(r"(.*?)\((.+)\)(.*)")
 
-    def __init__(self, **objects):
+    def __init__(self, name_generator, **objects):
         """
-        标准操作 "." 将被自动设置为 (self.operator_point, 10)
+        加载单个 yaml 描述文件
         """
         self.missing_map = objects.get("__missing__", {})
-        ui_widgets: list[UiObject] = []
+        self.name_generator = name_generator
+
+        ui_widgets: list[UiObject] = []  # XXX: 去掉了依赖检测, 为依赖检测添加的代码还在
         self.ui_objects: OrderedDict[str, UiObject] = OrderedDict()
 
-        for name, value in objects.items():
+        for name, value in objects.items():  # 注意这里的 name 不是 UI 元素里的 name, 而是上层的控件的 name
             if name[0] == "_":
                 continue
             ui_obj = self.description_to_ui_object(name, value)
             ui_widgets.append(ui_obj)
         for ui_obj in sorted(ui_widgets, reverse=True):
             self.ui_objects[ui_obj.name] = ui_obj
+            self.update_values(ui_obj, tuple(ui_obj.value.keys()))  # XXX: update_attrs 这玩意儿咋填啊
         # TODO
 
-    def operator_point(self, left: str, right: str):
-        if left.isnumeric():
-            return float(f"{left}.{right}")
-        return self.ui_objects[left].value[right]
-
-    def update_value(self, ui_object: UiObject, update_attrs: Iterable[str]):
+    def description_to_ui_object(self, obj_name, obj_value) -> UiObject:
         """
 
         """
-        for name in update_attrs:
-            statement = getattr(ui_object, name)
-            new, here = self.get_value(statement)
+        values = self.missing_map.copy()
+        values.update(obj_value)
+        obj_type = values["type"]
+        assert obj_type is self.BASIC_UI_WIDGETS, NotImplementedError  # NOTE: 如添加自定义控件, 改这里的代码
+        assert all(isinstance(values[key], (int, float)) for key in ())  # ???
+        order = 0 if obj_type in self.BASIC_UI_WIDGETS else 100
+        if values["name"] is None:
+            values["name"] = next(self.name_generator)
+        depends = []
+        return UiObject(obj_name, obj_value, order, depends)
 
-        return
+    def update_values(self, ui_object: UiObject, value_key_to_update: Iterable[str]):
+        """
+        更新 ui_object 的 depends 传入值 `update_attrs` 所指出的属性
+        """
+        for key in value_key_to_update:
+            statement = getattr(ui_object, key)
+            new = self.get_value(statement)
+            setattr(ui_object, key, new)
 
     def get_attr_from_val(self, object_values: Union[dict[str: Any], UiObject, Callable], key: str):
         """
@@ -142,32 +155,39 @@ class UiDescription:
         将表达式转换为新的属性
         """
         if m := self.RE_TOPIC.match(statement):  # 需要一个 Topic
-            return partial(get_topic, m.group(1)), get_topic(m.group(1))
+            return partial(get_topic, m.group(1))
 
         if m := self.RE_COMMAND.match(statement):  # 执行一个命令
-            return partial(get_output, m.group(1)), get_output(m.group(1))
+            return partial(get_output, m.group(1))
 
-        func = self.read_shell_like_statement(statement)
-        return func, func()
+        if m := self.RE_PYTHON.match(statement):  # Python 格式化
+            return self.read_python_value_statement(m.group(1))
 
-    def read_shell_like_statement(self, statement: str) -> Callable:
+        return statement
+
+    def read_python_value_statement(self, statement: str) -> Callable:
         """
-        将 类shell 表达式转换为新的属性, 特殊处理了括号第一个元素为操作符的情况
+        将 python 格式化表达式转换为新的属性, 特殊处理了括号第一个元素为操作符的情况
         """
-        statements = shlex.shlex(statement)
-        statements_new = []
-        mapping = {}
-        name_generator = get_name_generator()
-        for char in statements:
-            if char == "." and not statements_new[-1].isnumeric():
-                name = next(name_generator)
-                mapping[name] = partial(self.get_attr_from_val,
-                                        partial(self.ui_objects.get, statements_new[-1]),
-                                        next(statements))
-                statements_new[-1] = name + "()"
-            else:
-                statements_new.append(char)
-        return partial(eval, "".join(statements_new), None, mapping)
+
+        return partial(statement.format_map, self.ui_objects)
+
+    def update(self) -> Iterable[WidgetBasic]:
+        """
+        入口函数, 返回更新后的 UI 控件实例
+        """
+        ret = []
+        for ui_obj in self.ui_objects.values():
+            if not ui_obj.value["show"]:
+                continue
+            widget_cls = self.BASIC_UI_WIDGETS[ui_obj.value["type"]]
+            widget_obj_keys = {}
+            for key in set(ui_obj.value) - {"type", "show"}:
+                val = ui_obj.value[key]
+                widget_obj_keys[key] = val() if callable(val) else val
+            ret.append(widget_cls(**widget_obj_keys))
+
+        return ret
 
 
 class Loader:
@@ -178,11 +198,12 @@ class Loader:
 
     def __init__(self, dir_path: str,
                  name_generator: Optional[Iterable] = None, follow_links=True,
-                 ui_description_loader: Callable = UiDescription):
+                 ui_description_loader: type = UiDescription):
         """
 
         """
         self.dir_path = dir_path
+        self.loaders = []
         if name_generator is None:
             self.name_generate = self.IN_FILE_NAME_GENERATOR
         else:
@@ -194,12 +215,13 @@ class Loader:
             if file.endswith((".yaml", ".yml")):
                 with open(os.path.join(root, file), "r", encoding="utf-8") as fp:
                     cfg = yaml.safe_load(fp)
-                ui_description_loader(**cfg)  # TODO
+                self.loaders.append(ui_description_loader(self.name_generate, **cfg))  # TODO: 支持自定义控件
 
     def update(self):
         """
-
+        入口函数, 返回全部控件
         """
+        return itertools.chain.from_iterable(leaders.update() for leaders in self.loaders)
 
     def exec_(self, env_local=None, env_global=None):
         """

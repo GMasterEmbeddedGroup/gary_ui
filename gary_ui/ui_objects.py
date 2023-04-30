@@ -15,8 +15,12 @@ def get_name_generator(word_range: bytes = bytes(range(ord('a'), ord('z') + 1)))
     return combinations_with_replacement(word_range, 3)
 
 
+class WidgetBasic:
+    pass
+
+
 @dataclass(frozen=True)
-class GraphicBasic:
+class GraphicBasic(WidgetBasic):
     name: bytes  # XXX: 添加 default_factory 默认值工厂函数
     # graphic_type: int
     colour: int
@@ -81,7 +85,7 @@ class Float(GraphicBasic):
 
 
 @dataclass()
-class Sentence:
+class Sentence(WidgetBasic):
     """
     字符, 注意此类型不是 GraphicBasic 的子类, 且值可变
     """
