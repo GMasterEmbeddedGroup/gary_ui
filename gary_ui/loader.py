@@ -14,7 +14,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from functools import partial
 from subprocess import getoutput as get_output  # 强迫症行为
-from typing import Iterable, Optional, Callable, Union, List
+from typing import Iterable, Optional, Callable, Union, List, Tuple
 
 import yaml
 
@@ -179,7 +179,7 @@ class UiDescription:
 
         return partial(eval_formate, statement, self.ui_objects)
 
-    def update(self, clear_cache) -> Iterable[WidgetBasic]:
+    def update(self, clear_cache) -> Iterable[Tuple[int, WidgetBasic]]:
         """
         入口函数, 返回更新后的 UI 控件实例
         :param clear_cache: if True, clear cache before update
@@ -187,21 +187,37 @@ class UiDescription:
         if clear_cache:
             self.cache.clear()
 
-        objs = set()
+        names = {i.name for i in self.cache}
+
+        objs = {}
+        del_list = set()
         for ui_obj in self.ui_objects.values():
             if not ui_obj.value["show"]:
+                if ui_obj.name in names:  # 改为不显示
+                    del_list.add(Line(ui_obj.value["name"], 0, 0, 0, 0, 0, 0, 0))
                 continue
             widget_cls = self.BASIC_UI_WIDGETS[ui_obj.value["type"]]
             widget_obj_keys = {}
             for key in set(ui_obj.value) - {"type", "show"}:
                 val = ui_obj.value[key]
                 widget_obj_keys[key] = val() if callable(val) else val
-            objs.add(widget_cls(**widget_obj_keys))
+            if ui_obj.name not in names:
+                m = 1  # add 模式
+            elif ui_obj in self.cache:
+                continue
+            else:  # ui_obj.name in names
+                m = 2  # modify
+            objs[widget_cls(**widget_obj_keys)] = m
 
-        ret = objs - self.cache
-        self.cache.update(ret)
+        new = set(objs) - self.cache
 
-        return ret
+        for n in new:
+            yield n, objs[n]
+        yield from ((i, 3) for i in del_list)
+
+        self.cache.update(new)
+        for i in del_list:
+            self.cache.remove(i)
 
 
 class Loader:
