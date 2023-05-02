@@ -8,11 +8,12 @@ from dataclasses import dataclass
 from itertools import combinations_with_replacement
 
 
-def get_name_generator(word_range: bytes = bytes(range(ord('a'), ord('z') + 1))):
+def get_name_generator(word_range=range(ord('a'), ord('z') + 1)):
     """
     生成一个迭代器, 这个迭代器可以通过排列组合生成有效的字符名称.
     """
-    return combinations_with_replacement(word_range, 3)
+    for i in combinations_with_replacement(word_range, 3):
+        yield bytes(i)
 
 
 class WidgetBasic:
@@ -97,7 +98,6 @@ class Sentence(WidgetBasic):
     start_y: int
     font_size: int
 
-    graphic_type: int
     string: array
     length: None | int = None
     graphic_type = 7

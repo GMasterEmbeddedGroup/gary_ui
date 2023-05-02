@@ -14,7 +14,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from functools import partial
 from subprocess import getoutput as get_output  # 强迫症行为
-from typing import Iterable, Optional, Callable, Any, Union
+from typing import Iterable, Optional, Callable, Union
 
 import yaml
 
@@ -34,8 +34,12 @@ class UiObject:
     def __lt__(self, other):
         return self.load_order > other.load_order
 
-    def __getattr__(self, item):
+    def __getitem__(self, item):
         return self.value[item]
+
+
+def eval_formate(s: str, mapping):
+    return eval(s.format_map(mapping))
 
 
 def get_topic(name):
@@ -123,24 +127,26 @@ class UiDescription:
         values = self.missing_map.copy()
         values.update(obj_value)
         obj_type = values["type"]
-        assert obj_type is self.BASIC_UI_WIDGETS, NotImplementedError  # NOTE: 如添加自定义控件, 改这里的代码
+        assert obj_type in self.BASIC_UI_WIDGETS, NotImplementedError  # NOTE: 如添加自定义控件, 改这里的代码
         assert all(isinstance(values[key], (int, float)) for key in ())  # ???
         order = 0 if obj_type in self.BASIC_UI_WIDGETS else 100
         if values["name"] is None:
             values["name"] = next(self.name_generator)
         depends = []
-        return UiObject(obj_name, obj_value, order, depends)
+        return UiObject(obj_name, values, order, depends)
 
     def update_values(self, ui_object: UiObject, value_key_to_update: Iterable[str]):
         """
         更新 ui_object 的 depends 传入值 `update_attrs` 所指出的属性
         """
         for key in value_key_to_update:
-            statement = getattr(ui_object, key)
+            statement = ui_object.value[key]
+            if not isinstance(statement, str):
+                continue
             new = self.get_value(statement)
-            setattr(ui_object, key, new)
+            ui_object.value[key] = new
 
-    def get_attr_from_val(self, object_values: Union[dict[str: Any], UiObject, Callable], key: str):
+    def get_attr_from_val(self, object_values: Union[dict, UiObject, Callable], key: str):
         """
         从 UI 描述中返回 key 对应的属性值 (其实就是多了个 missing_map 查询)
         """
@@ -170,7 +176,7 @@ class UiDescription:
         将 python 格式化表达式转换为新的属性, 特殊处理了括号第一个元素为操作符的情况
         """
 
-        return partial(statement.format_map, self.ui_objects)
+        return partial(eval_formate, statement, self.ui_objects)
 
     def update(self) -> Iterable[WidgetBasic]:
         """
