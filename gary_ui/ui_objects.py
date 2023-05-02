@@ -85,10 +85,10 @@ class Float(GraphicBasic):
     graphic_type = 3
 
 
-@dataclass()
+@dataclass(frozen=True)
 class Sentence(WidgetBasic):
     """
-    字符, 注意此类型不是 GraphicBasic 的子类, 且值可变
+    字符, 注意此类型不是 GraphicBasic 的子类
     """
     name: bytes  # XXX: 添加 default_factory 默认值工厂函数
     colour: int
@@ -98,12 +98,12 @@ class Sentence(WidgetBasic):
     start_y: int
     font_size: int
 
-    string: array
+    string: str
     length: None | int = None
     graphic_type = 7
 
     def __post_init__(self):
-        assert self.string.typecode == "B", TypeError("Sentence.string should be B-type array.")
+        # assert self.string.typecode == "B", TypeError("Sentence.string should be B-type array.")
         assert self.length is None or self.length > len(self.string), ValueError(
             "Sentence object property `length` can't > len(self.string). Need < %d, got %d.",
             (len(self.string), self.length))

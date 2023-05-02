@@ -1,8 +1,10 @@
 """
 将图像类转换为数据
 """
+from copy import copy
 from array import array
 from typing import Union
+from functools import singledispatch
 
 from .ui_objects import Line, Rectangle, Cycle, Float, Sentence
 
@@ -54,7 +56,13 @@ def encode_basic(data: array, mode: Union[str, int],
     return val
 
 
-def encode_line(mode: Union[int, str], line: Line) -> array:
+@singledispatch
+def encode(mode, obj):
+    raise TypeError("Unknown UI object", type(obj))
+
+
+@encode.register
+def encode_line(mode: int, line: Line) -> array:
     """
     :param mode: 模式：新增(1), 修改(2), 删除(3)
     :param line: 一条直线
@@ -89,7 +97,8 @@ def encode_line(mode: Union[int, str], line: Line) -> array:
     return data
 
 
-def encode_rectangle(mode: Union[int, str], rectangle: Rectangle) -> array:
+@encode.register
+def encode_rectangle(mode: int, rectangle: Rectangle) -> array:
     """
     将矩形对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -115,7 +124,8 @@ def encode_rectangle(mode: Union[int, str], rectangle: Rectangle) -> array:
     return data
 
 
-def encode_cycle(mode: Union[int, str], cycle: Cycle) -> array:
+@encode.register
+def encode_cycle(mode: int, cycle: Cycle) -> array:
     """
     将正圆对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -140,7 +150,8 @@ def encode_cycle(mode: Union[int, str], cycle: Cycle) -> array:
     return data
 
 
-def encode_float(mode: Union[int, str], float_: Float) -> array:
+@encode.register
+def encode_float(mode: int, float_: Float) -> array:
     """
     将正圆对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -167,7 +178,7 @@ def encode_float(mode: Union[int, str], float_: Float) -> array:
     return data
 
 
-def encode_sentence(mode: Union[int, str], sentence: Sentence) -> array:
+def encode_sentence(mode: int, sentence: Sentence) -> array:
     """
     将 Sentence 对象转码为绘制命令
     """
@@ -193,3 +204,32 @@ def encode_sentence(mode: Union[int, str], sentence: Sentence) -> array:
         data.extend(bytes(30 - sentence_length))
 
     return data
+
+
+def encode_iter(*args) -> array:
+    """
+    编码 UI 对象
+    :param args: Iterable: (mode, object)
+    :return:
+    """
+    ret = array("B")
+    number = 0
+
+    for mode, obj in args:
+        if number > 7:
+            yield copy(ret)
+            ret.clear()
+            number -= 7
+        ret.extend(encode(mode, obj))
+        number += 1
+
+    if number in (7, 5, 2, 1):
+        yield ret
+
+    elif number < 5:
+        ret.extend(bytes(30 * (5 - number)))
+        yield ret
+
+    else:  # number == 6
+        ret.extend(bytes(30))
+        yield ret

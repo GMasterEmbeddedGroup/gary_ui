@@ -10,12 +10,17 @@ TODO: Document Here
 
 from gary_ui.loader import Loader
 
+from time import sleep
+from pprint import pprint
+
 
 def main():
     loader = Loader("demo_yamls")
-    ls = loader.update()
-    print(list(ls))
-    return ls
+    for i in range(4):
+        ls = loader.update()
+        print(f"[{i}]")
+        pprint(list(ls))
+        sleep(0.4)
 
 
 if __name__ == "__main__":

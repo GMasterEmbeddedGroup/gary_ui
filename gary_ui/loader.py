@@ -14,7 +14,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from functools import partial
 from subprocess import getoutput as get_output  # 强迫症行为
-from typing import Iterable, Optional, Callable, Union
+from typing import Iterable, Optional, Callable, Union, List
 
 import yaml
 
@@ -106,8 +106,9 @@ class UiDescription:
         """
         self.missing_map = objects.get("__missing__", {})
         self.name_generator = name_generator
+        self.cache = set()
 
-        ui_widgets: list[UiObject] = []  # XXX: 去掉了依赖检测, 为依赖检测添加的代码还在
+        ui_widgets: List[UiObject] = []  # XXX: 去掉了依赖检测, 为依赖检测添加的代码还在
         self.ui_objects: OrderedDict[str, UiObject] = OrderedDict()
 
         for name, value in objects.items():  # 注意这里的 name 不是 UI 元素里的 name, 而是上层的控件的 name
@@ -178,11 +179,15 @@ class UiDescription:
 
         return partial(eval_formate, statement, self.ui_objects)
 
-    def update(self) -> Iterable[WidgetBasic]:
+    def update(self, clear_cache) -> Iterable[WidgetBasic]:
         """
         入口函数, 返回更新后的 UI 控件实例
+        :param clear_cache: if True, clear cache before update
         """
-        ret = []
+        if clear_cache:
+            self.cache.clear()
+
+        objs = set()
         for ui_obj in self.ui_objects.values():
             if not ui_obj.value["show"]:
                 continue
@@ -191,7 +196,10 @@ class UiDescription:
             for key in set(ui_obj.value) - {"type", "show"}:
                 val = ui_obj.value[key]
                 widget_obj_keys[key] = val() if callable(val) else val
-            ret.append(widget_cls(**widget_obj_keys))
+            objs.add(widget_cls(**widget_obj_keys))
+
+        ret = objs - self.cache
+        self.cache.update(ret)
 
         return ret
 
@@ -223,11 +231,11 @@ class Loader:
                     cfg = yaml.safe_load(fp)
                 self.loaders.append(ui_description_loader(self.name_generate, **cfg))  # TODO: 支持自定义控件
 
-    def update(self):
+    def update(self, clear_cache=False):
         """
         入口函数, 返回全部控件
         """
-        return itertools.chain.from_iterable(leaders.update() for leaders in self.loaders)
+        return itertools.chain.from_iterable(leaders.update(clear_cache) for leaders in self.loaders)
 
     def exec_(self, env_local=None, env_global=None):
         """

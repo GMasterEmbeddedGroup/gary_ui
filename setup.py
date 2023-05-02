@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            # "start_up_down_node = gary_liftup:start_up_down_node",
+            "ui_node = gary_ui:run_ui_node",
         ],
     },
 )
