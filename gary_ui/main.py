@@ -10,23 +10,50 @@
 
 from . import Loader, encode_iter
 
+import time
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Header
+from gary_msgs.msg import InteractiveDataSend, RobotStatus
 
 
 class UiNode(Node):
+    SENDER_RECEIVER_MAPPING = {1: 0x101,
+                               2: 0x102,
+                               3: 0x103,
+                               4: 0x104,
+                               5: 0x105,
+
+                               101: 0x165,
+                               102: 0x166,
+                               103: 0x167,
+                               104: 0x168,
+                               105: 0x169}
+
     def __init__(self):
         super().__init__("gary_ui")
 
         self.update_counter = 0
+        self.robot_id = 0
 
         self.declare_parameter('ui_path', rclpy.Parameter.Type.STRING)
         self.declare_parameter('ui_cache_clear_times', 100)
+
+        self.declare_parameter('ui_define_priority', 1)
+        self.declare_parameter('ui_define_valid_time', 0.1)
+
+        self.robot_state_listener = self.create_subscription(RobotStatus,
+                                                             "/referee/robot_status",
+                                                             self.robot_status_callback,
+                                                             10)
 
         ui_path = self.get_parameter("ui_path")
         self.ui = Loader(ui_path.value)
 
         self.create_timer(0.2, self.update_ui)
+
+    def robot_status_callback(self, msg: RobotStatus):
+        self.robot_id = msg.robot_id
 
     def update_ui(self):
         self.update_counter = (self.update_counter + 1) % self.get_parameter("ui_cache_clear_times").value
@@ -35,6 +62,17 @@ class UiNode(Node):
                 self.publish_array(arr)
 
     def publish_array(self, arr):
+        header = Header(stamp=int(time.time()), frame_id="ui")
+        valid_time = self.get_parameter("ui_define_valid_time")
+        priority = self.get_parameter("ui_define_priority")
+        msg = InteractiveDataSend(header=header,
+                                  priority=priority.value,
+                                  valid_time=valid_time.value,
+                                  data_cmd_id=0x0301,  # 固定的机器人间通信指令
+                                  sender_id=self.robot_id,
+                                  receiver_id=self.SENDER_RECEIVER_MAPPING[self.robot_id],
+                                  data_length=len(arr),
+                                  data=arr)
         raise NotImplementedError
 
 
