@@ -36,7 +36,7 @@ class UiNode(Node):
         self.update_counter = 0
         self.robot_id = 0
 
-        self.declare_parameter('ui_path', "/root/ros2_ws/src/gary/gary_ui/test/demo_yamls")
+        self.declare_parameter('ui_path', "/gmaster/ros2_ws/src/gary/gary_ui/test/demo_yamls")
         self.declare_parameter('ui_cache_clear_times', 100)
 
         self.declare_parameter('ui_define_priority', 1)
