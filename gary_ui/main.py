@@ -77,7 +77,7 @@ class UiNode(Node):
                                   data_cmd_id=0x0301,  # 固定的机器人间通信指令
                                   sender_id=self.robot_id,
                                   receiver_id=self.SENDER_RECEIVER_MAPPING[self.robot_id],
-                                  data_length=len(arr),
+                                  # data_length=len(arr),
                                   data=arr)
         self.data_publisher.publish(msg)
 
