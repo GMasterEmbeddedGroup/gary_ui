@@ -46,6 +46,9 @@ class UiNode(Node):
                                                              "/referee/robot_status",
                                                              self.robot_status_callback,
                                                              10)
+        self.data_publisher = self.create_publisher(InteractiveDataSend,
+                                                    "/referee/interactive_data_send",
+                                                    3)
 
         ui_path = self.get_parameter("ui_path")
         self.ui = Loader(ui_path.value)
@@ -73,7 +76,7 @@ class UiNode(Node):
                                   receiver_id=self.SENDER_RECEIVER_MAPPING[self.robot_id],
                                   data_length=len(arr),
                                   data=arr)
-        raise NotImplementedError
+        self.data_publisher.publish(msg)
 
 
 def run_ui_node():
