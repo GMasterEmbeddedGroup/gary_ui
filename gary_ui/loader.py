@@ -240,7 +240,10 @@ class Loader:
             self.name_generate = name_generator
 
         walk = os.walk(dir_path, followlinks=follow_links)
-        root, dirs, files = next(walk)
+        try:
+            root, dirs, files = next(walk)
+        except StopIteration:
+            raise RuntimeError(dir_path, "is an empty fold")
         for file in files:
             if file.endswith((".yaml", ".yml")):
                 with open(os.path.join(root, file), "r", encoding="utf-8") as fp:
