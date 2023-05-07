@@ -61,6 +61,7 @@ class UiNode(Node):
     def update_ui(self):
         self.update_counter = (self.update_counter + 1) % self.get_parameter("ui_cache_clear_times").value
         for ui_obj in self.ui.update(clear_cache=self.update_counter == 0):
+            print(ui_obj)
             for arr in encode_iter(ui_obj):
                 self.publish_array(arr)
 
