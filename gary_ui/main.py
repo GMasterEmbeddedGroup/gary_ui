@@ -14,6 +14,7 @@ import time
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Header
+from builtin_interfaces.msg import Time
 from gary_msgs.msg import InteractiveDataSend, RobotStatus
 
 
@@ -66,7 +67,8 @@ class UiNode(Node):
                 self.publish_array(arr)
 
     def publish_array(self, arr):
-        header = Header(stamp=int(time.time()), frame_id="ui")
+        stamp = Time(sec=int(time.time()), nanosec=0)
+        header = Header(stamp=stamp, frame_id="ui")
         valid_time = self.get_parameter("ui_define_valid_time")
         priority = self.get_parameter("ui_define_priority")
         msg = InteractiveDataSend(header=header,
