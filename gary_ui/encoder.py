@@ -215,7 +215,7 @@ def encode_iter(*args) -> array:
     ret = array("B")
     number = 0
 
-    for mode, obj in args:
+    for obj, mode in args:
         if number > 7:
             yield copy(ret)
             ret.clear()
