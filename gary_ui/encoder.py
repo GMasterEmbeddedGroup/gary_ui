@@ -57,12 +57,12 @@ def encode_basic(data: array, mode: Union[str, int],
 
 
 @singledispatch
-def encode(mode, obj):
+def encode(obj, mode):
     raise TypeError("Unknown UI object", type(obj))
 
 
 @encode.register
-def encode_line(mode: int, line: Line) -> array:
+def encode_line(line: Line, mode: int = 2) -> array:
     """
     :param mode: 模式：新增(1), 修改(2), 删除(3)
     :param line: 一条直线
@@ -98,7 +98,7 @@ def encode_line(mode: int, line: Line) -> array:
 
 
 @encode.register
-def encode_rectangle(mode: int, rectangle: Rectangle) -> array:
+def encode_rectangle(rectangle: Rectangle, mode: int = 2) -> array:
     """
     将矩形对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -125,7 +125,7 @@ def encode_rectangle(mode: int, rectangle: Rectangle) -> array:
 
 
 @encode.register
-def encode_cycle(mode: int, cycle: Cycle) -> array:
+def encode_cycle(cycle: Cycle, mode: int = 2) -> array:
     """
     将正圆对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -151,7 +151,7 @@ def encode_cycle(mode: int, cycle: Cycle) -> array:
 
 
 @encode.register
-def encode_float(mode: int, float_: Float) -> array:
+def encode_float(float_: Float, mode: int = 2) -> array:
     """
     将正圆对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -178,7 +178,7 @@ def encode_float(mode: int, float_: Float) -> array:
     return data
 
 
-def encode_sentence(mode: int, sentence: Sentence) -> array:
+def encode_sentence(sentence: Sentence, mode: int = 2) -> array:
     """
     将 Sentence 对象转码为绘制命令
     """
@@ -220,7 +220,7 @@ def encode_iter(*args) -> array:
             yield copy(ret)
             ret.clear()
             number -= 7
-        ret.extend(encode(mode, obj))
+        ret.extend(encode(obj, mode))
         number += 1
 
     if number in (7, 5, 2, 1):
