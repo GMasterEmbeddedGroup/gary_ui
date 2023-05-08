@@ -41,7 +41,7 @@ class UiNode(Node):
         self.declare_parameter('ui_cache_clear_times', 100)
 
         self.declare_parameter('ui_define_priority', 1)
-        self.declare_parameter('ui_define_valid_time', 0.2)
+        self.declare_parameter('ui_define_valid_time', 1.0)
 
         self.robot_state_listener = self.create_subscription(RobotStatus,
                                                              "/referee/robot_status",
