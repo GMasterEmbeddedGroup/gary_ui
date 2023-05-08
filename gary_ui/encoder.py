@@ -206,7 +206,7 @@ def encode_sentence(sentence: Sentence, mode: int = 2) -> array:
     return data
 
 
-def encode_iter(*args) -> array:
+def encode_iter(*args) -> tuple[int, array]:
     """
     编码 UI 对象
     :param args: Iterable: (mode, object)
@@ -223,13 +223,20 @@ def encode_iter(*args) -> array:
         ret.extend(encode(obj, mode))
         number += 1
 
-    if number in (7, 5, 2, 1):
-        yield ret
+    mapping = {
+        1: 0x0101,
+        2: 0x0102,
+        5: 0x0103,
+        7: 0x0104
+    }
+
+    if number in mapping:
+        yield number, ret
 
     elif number < 5:
         ret.extend(bytes(30 * (5 - number)))
-        yield ret
+        yield mapping[5], ret
 
     else:  # number == 6
         ret.extend(bytes(30))
-        yield ret
+        yield mapping[7], ret

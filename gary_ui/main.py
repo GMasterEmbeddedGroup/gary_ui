@@ -65,14 +65,14 @@ class UiNode(Node):
             print(ui_obj)
             with open("/home/gmaster/ros2_ws/src/gary/gary_ui/log.txt", "a") as fp:
                 fp.write(repr(ui_obj))
-            for arr in encode_iter(ui_obj):
+            for data_cmd_id, arr in encode_iter(ui_obj):
                 with open("/home/gmaster/ros2_ws/src/gary/gary_ui/log.txt", "a") as fp:
                     fp.write(repr(arr))
-                self.publish_array(arr)
+                self.publish_array(data_cmd_id, arr)
         with open("/home/gmaster/ros2_ws/src/gary/gary_ui/log.txt", "a") as fp:
             fp.write("--- %.2f ---" % time.time())
 
-    def publish_array(self, arr):
+    def publish_array(self, data_cmd_id, arr):
         stamp = Time(sec=int(time.time()), nanosec=0)
         header = Header(stamp=stamp, frame_id="ui")
         valid_time = self.get_parameter("ui_define_valid_time")
@@ -80,7 +80,7 @@ class UiNode(Node):
         msg = InteractiveDataSend(header=header,
                                   priority=priority.value,
                                   valid_time=valid_time.value,
-                                  data_cmd_id=0x0301,  # 固定的机器人间通信指令
+                                  data_cmd_id=data_cmd_id,
                                   sender_id=self.robot_id,
                                   receiver_id=self.SENDER_RECEIVER_MAPPING[self.robot_id],
                                   # data_length=len(arr),
