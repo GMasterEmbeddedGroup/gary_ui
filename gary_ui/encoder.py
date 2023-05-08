@@ -206,7 +206,7 @@ def encode_sentence(sentence: Sentence, mode: int = 2) -> array:
     return data
 
 
-def encode_iter(*args) -> tuple[int, array]:
+def encode_iter(*args):
     """
     编码 UI 对象
     :param args: Iterable: (mode, object)
