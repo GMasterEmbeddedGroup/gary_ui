@@ -78,6 +78,8 @@ class UiNode(Node):
         header = Header(stamp=stamp, frame_id="ui")
         valid_time = self.get_parameter("ui_define_valid_time")
         priority = self.get_parameter("ui_define_priority")
+        print("robot id", self.robot_id)
+        print("receiver id", self.SENDER_RECEIVER_MAPPING[self.robot_id])
         msg = InteractiveDataSend(header=header,
                                   priority=priority.value,
                                   valid_time=valid_time.value,
@@ -88,7 +90,7 @@ class UiNode(Node):
                                   # data_length=len(arr),
                                   # data=arr,
                                   data=array.array("B",
-                                                   [112, 142, 16, 12, 2, 128, 40, 9, 0, 2, 136, 201, 99, 98, 97][::-1])
+                                                   [97, 98, 99, 201, 136, 2, 0, 9, 40, 128, 2, 12, 16, 142, 112])
                                   )
         self.data_publisher.publish(msg)
 
