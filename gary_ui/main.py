@@ -7,6 +7,7 @@
 主文件
 
 """
+import array
 
 from . import Loader, encode_iter
 
@@ -80,11 +81,15 @@ class UiNode(Node):
         msg = InteractiveDataSend(header=header,
                                   priority=priority.value,
                                   valid_time=valid_time.value,
-                                  data_cmd_id=data_cmd_id,
+                                  data_cmd_id=0x0101,
+                                  # data_cmd_id=data_cmd_id,
                                   sender_id=self.robot_id,
                                   receiver_id=self.SENDER_RECEIVER_MAPPING[self.robot_id],
                                   # data_length=len(arr),
-                                  data=arr)
+                                  # data=arr,
+                                  data=array.array("B",
+                                                   [112, 142, 16, 12, 2, 128, 40, 9, 0, 2, 136, 201, 99, 98, 97][::-1])
+                                  )
         self.data_publisher.publish(msg)
 
 
