@@ -41,7 +41,7 @@ class UiNode(Node):
         self.declare_parameter('ui_cache_clear_times', 100)
 
         self.declare_parameter('ui_define_priority', 1)
-        self.declare_parameter('ui_define_valid_time', 0.1)
+        self.declare_parameter('ui_define_valid_time', 0.2)
 
         self.robot_state_listener = self.create_subscription(RobotStatus,
                                                              "/referee/robot_status",
@@ -63,8 +63,14 @@ class UiNode(Node):
         self.update_counter = (self.update_counter + 1) % self.get_parameter("ui_cache_clear_times").value
         for ui_obj in self.ui.update(clear_cache=self.update_counter == 0):
             print(ui_obj)
+            with open("/home/gmaster/ros2_ws/src/gary/gary_ui/log.txt", "a") as fp:
+                fp.write(repr(ui_obj))
             for arr in encode_iter(ui_obj):
+                with open("/home/gmaster/ros2_ws/src/gary/gary_ui/log.txt", "a") as fp:
+                    fp.write(repr(arr))
                 self.publish_array(arr)
+        with open("/home/gmaster/ros2_ws/src/gary/gary_ui/log.txt", "a") as fp:
+            fp.write("--- %.2f ---" % time.time())
 
     def publish_array(self, arr):
         stamp = Time(sec=int(time.time()), nanosec=0)
