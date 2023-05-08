@@ -74,16 +74,17 @@ def encode_line(line: Line, mode: int = 2) -> array:
     # -- bit 14-22: 起始角度, 单位: °, 范围 [0, 360]
     # -- bit 23-31: 终止角度, 单位: °, 范围 [0, 360]
     val <<= 18
-    data.extend(val.to_bytes(4, "big"))
 
-    # 2. 4 byte
+    data.extend(val.to_bytes(4, "little"))
+
+    # 2. 4 byte2
     # -- bit 0-9: 线宽
     val = line.width
     # -- bit 10-20: 起点 x 坐标
     val = (val << 11) + line.start_x
     # -- bit 21-31: 起点 y 坐标
     val = (val << 11) + line.start_y
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 3. 4 byte
     # -- bit 0-9: 字体大小或者半径
@@ -92,7 +93,7 @@ def encode_line(line: Line, mode: int = 2) -> array:
     val = (val << 11) + line.end_x
     # -- bit 21-31: 终点 y 坐标
     val = (val << 11) + line.end_y
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     return data
 
@@ -108,18 +109,18 @@ def encode_rectangle(rectangle: Rectangle, mode: int = 2) -> array:
     data = array("B", [])
     # 1. 4 byte
     val = encode_basic(data, mode, rectangle) << 18
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 2. 4 byte
     # -- bit 0-9: 线宽
     val = (((rectangle.width << 11) + rectangle.start_x) << 11) + rectangle.start_y
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 3. 4 byte
     # -- bit 0-9: 字体大小或者半径
     # -- bit 10-20: 终点 x 坐标
     val = (rectangle.diagonal_vertex_x << 11) + rectangle.diagonal_vertex_y
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     return data
 
@@ -135,17 +136,17 @@ def encode_cycle(cycle: Cycle, mode: int = 2) -> array:
     data = array("B", [])
     # 1. 4 byte
     val = encode_basic(data, mode, cycle) << 18
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 2. 4 byte
     # -- bit 0-9: 线宽
     val = (((cycle.width << 11) + cycle.centre_x) << 11) + cycle.centre_y
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 3. 4 byte
     # -- bit 0-9: 字体大小或者半径
     val = cycle.radius << 22
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     return data
 
@@ -165,15 +166,15 @@ def encode_float(float_: Float, mode: int = 2) -> array:
     val = (val << 9) + float_.font_size
     # -- bit 23-31: 小数位有效个数
     val = (val << 9) + float_.significant_digits
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 2. 4 byte
     val = (((float_.width << 11) + float_.start_x) << 11) + float_.start_y
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 3. 4 byte
     val = int(round(float_.value, 4) * 1000) % (2 ** 31) * (-1 if val < 0 else 1)
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     return data
 
@@ -187,11 +188,11 @@ def encode_sentence(sentence: Sentence, mode: int = 2) -> array:
     val = encode_basic(data, mode, sentence)
     # -- bit 14-22: 字体大小 and 字符长度
     val = (((val << 9) + sentence.font_size) << 9) + sentence.length
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 2. 4 byte
     val = (((sentence.width << 11) + sentence.start_x) << 11) + sentence.start_y
-    data.extend(val.to_bytes(4, "big"))
+    data.extend(val.to_bytes(4, "little"))
 
     # 3. 4 byte
     data.extend(bytes(4))
