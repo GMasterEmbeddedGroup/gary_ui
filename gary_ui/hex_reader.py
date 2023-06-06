@@ -59,19 +59,56 @@ def byte_to_graph_data(hex_code: str):
     hex_code = hex_code.ljust(30, " ")
     bin_code = hex_str_to_bin_str(hex_code)
 
-    parts = []
-    sta = 0
-    for i in (24, 3, 3, 4, 4, 9, 9, 10, 11, 11, 10, 11, 11):
-        parts.append(bin_code[sta: sta + i])
-        sta += i
-
-    parts = iter(parts)
-
-    name_code = next(parts)
+    name_code = bin_code[:24]
     name = "".join(chr(int(i, 2)) for i in (name_code[:8], name_code[8:16], name_code[16:24]))
 
-    (operate_type, graphic_type, layer, color, start_angle, end_angle,
-     width, start_x, start_y, radius, end_x, end_y) = (int(i, 2) for i in parts)
+    layer_code_tail = bin_code[24:26]  # 2 / 4
+    graphic_type_code = bin_code[26:29]  # 3
+    operate_type_code = bin_code[29:32]  # 3
+
+    start_angle_code_tail = bin_code[32:34]  # 2 / 9
+    color_code = bin_code[34:38]  # 4
+    layer_code_head = bin_code[38:40]  # 2 / 4
+
+    end_angle_code_tail = bin_code[40:41]  # 1 / 9
+    start_angle_code_head = bin_code[41:48]  # 7 / 9
+
+    end_angle_code_head = bin_code[48:56]  # 8 / 9
+
+    width_code_tail = bin_code[56:64]  # 8 / 10
+
+    start_x_code_tail = bin_code[64:70]  # 6 / 11
+    width_code_head = bin_code[70:72]  # 2 / 10
+
+    start_y_code_tail = bin_code[72: 75]  # 3 / 11
+    start_x_code_head = bin_code[75: 80]  # 5 / 11
+
+    start_y_code_head = bin_code[80:88]  # 8 / 11
+
+    radius_code_tail = bin_code[88:96]  # 8 / 10
+
+    end_x_code_tail = bin_code[96:102]  # 6 / 11
+    radius_code_head = bin_code[102:104]  # 2 / 10
+
+    end_y_code_tail = bin_code[104:107]  # 3 / 11
+    end_x_code_head = bin_code[107:112]  # 5 / 11
+
+    end_y_code_head = bin_code[112:120]  # 8 / 11
+
+    print("-")
+
+    operate_type = int(operate_type_code, 2)
+    graphic_type = int(graphic_type_code, 2)
+    layer = int(layer_code_head + layer_code_tail, 2)
+    color = int(color_code, 2)
+    start_angle = int(start_angle_code_head + start_angle_code_tail, 2)
+    end_angle = int(end_angle_code_head + end_angle_code_tail, 2)
+    width = int(width_code_head + width_code_tail, 2)
+    start_x = int(start_x_code_head + start_x_code_tail, 2)
+    start_y = int(start_y_code_head + start_y_code_tail, 2)
+    radius = int(radius_code_head + radius_code_tail, 2)
+    end_x = int(end_x_code_head + end_x_code_tail, 2)
+    end_y = int(end_y_code_head + end_y_code_tail, 2)
 
     return GraphData(name, operate_type, graphic_type, layer, color, start_angle, end_angle,
                      width, start_x, start_y, radius, end_x, end_y)
