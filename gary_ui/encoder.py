@@ -62,7 +62,7 @@ def encode(obj, mode):
 
 
 @encode.register
-def encode_line(line: Line, mode: int = 2) -> array:
+def encode_line(line: Line, mode: Union[int, str] = 2) -> array:
     """
     :param mode: 模式：新增(1), 修改(2), 删除(3)
     :param line: 一条直线

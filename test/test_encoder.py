@@ -11,17 +11,25 @@ from gary_ui.ui_objects import Line
 from gary_ui.encoder import encode_line
 from gary_ui.hex_reader import byte_to_graph_data
 
+line = Line(name=b'012',
+            colour=1,
+            width=1,
+            layout=8,
+            start_x=0,
+            start_y=0,
+            end_x=10,
+            end_y=12)
+
 
 def test_line_encoder():
-    line = Line(name=b'012', colour=1, width=1, layout=8, start_x=0, start_y=0, end_x=10, end_y=12)
-    arr = encode_line('add', line)
+    arr = encode_line(line, "add")
     hex_code = arr.tobytes().hex()
     return byte_to_graph_data(hex_code)
 
 
 def main():
     graph = test_line_encoder()
-    print("Line(name=b'012', colour=1, width=1, layout=8, start_x=0, start_y=0, end_x=10, end_y=12)\n->\n", graph)
+    print(f"{line}\n->\n", graph)
 
 
 if __name__ == "__main__":
