@@ -11,6 +11,12 @@ void print_hex(unsigned char * ptr, unsigned char length) {
     }
     printf("\n");
 }
+void print_hex_real(unsigned char * ptr, unsigned char length) {
+    for (int i = 0; i < length; i++){
+        printf("'%02x', ", *(ptr + i));
+    }
+    printf("\n");
+}
 
 
 typedef struct
@@ -40,6 +46,7 @@ int main() {
     val.layer = 3;
     val.color = 2;
     val.start_angle = 10;
+    val.end_angle = 0;
     val.width = 9;
     val.start_x = 10;
     val.start_y = 20;
@@ -48,5 +55,6 @@ int main() {
     val.end_y = 900;
 
     print_hex(&val, sizeof(graphic_data_struct_t) / sizeof(unsigned char));
+    print_hex_real(&val, sizeof(graphic_data_struct_t) / sizeof(unsigned char));
     return 0;
 }
