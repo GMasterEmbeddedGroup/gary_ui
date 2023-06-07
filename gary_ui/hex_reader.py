@@ -77,7 +77,7 @@ def byte_to_graph_data(hex_code: str):
 
     width_code_tail = bin_code[56:64]  # 8 / 10
 
-    start_x_code_tail = bin_code[64:70]  # 6 / 11
+    start_x_code_tail = bin_code[64:70]  # 6 / 11[
     width_code_head = bin_code[70:72]  # 2 / 10
 
     start_y_code_tail = bin_code[72: 75]  # 3 / 11

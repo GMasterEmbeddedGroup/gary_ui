@@ -9,6 +9,13 @@ from functools import singledispatch
 from .ui_objects import Line, Rectangle, Cycle, Float, Sentence
 
 
+def _fast_to_bin(num: int, length: int) -> str:
+    """
+    一个数字转二进制字符的函数 2 -> 10
+    """
+    return bin(num)[2:].rjust(length, "0")
+
+
 # typedef __packed struct{
 #         uint8_t graphic_name[3];
 #         uint32_t operate_type:3;
@@ -25,9 +32,8 @@ from .ui_objects import Line, Rectangle, Cycle, Float, Sentence
 #         uint32_t end_y:11;
 #         } graphic_data_struct_t
 
-
 def encode_basic(data: array, mode: Union[str, int],
-                 obj: Union[Line, Rectangle, Cycle, Float, Sentence]) -> int:
+                 obj: Union[Line, Rectangle, Cycle, Float, Sentence]) -> str:
     """
     转换图形结构的基础内容: 向 data 填入图形名称, 返回前 4 字节中的前 14 位数字 (包含 操作模式, 图形类型, 图层号, 颜色)
     :param data:
@@ -38,21 +44,29 @@ def encode_basic(data: array, mode: Union[str, int],
     # 1. (3 * 8) 图形名
     data.extend(obj.name)  # name 长度恒为 3
 
-    # 2. (4 * 8)
-    # -- bit 0-2: 图形操作
+    # 2. (4 * 8): 1 / 4
+    # -- bit 5-8: 图形操作
     if isinstance(mode, str):
         try:
             mode = ("empty", "add", "modify", "delete").index(mode.lower())
         except ValueError as err:
             raise ValueError('need integer 0~3, or string ("empty", "add", "modify", "delete")') from err
-    val = mode
-    # -- bit 3-5: 图形类型
-    val = (val << 3) + obj.graphic_type
-    # -- bit 6-9: 图层数, 0~9
-    val = (val << 4) + obj.layout
-    # -- bit 10-13: 颜色
-    val = (val << 4) + obj.colour
-    # Note: 位移运算符比加号的优先级低!!! 我可去你的吧 CSDN
+    val: str
+    # -- byte 1
+    # operate type (3 / 3)
+    val = _fast_to_bin(mode, 3)
+    # graphic_type (3 /3)
+    val = _fast_to_bin(obj.graphic_type, 3) + val
+    # layer (2 / 4)
+    layer_code = _fast_to_bin(obj.layout, 4)
+    val = layer_code[-2:] + val
+    data.append(int(val, 2))
+    # -- byte 2
+    # start_angle : pass
+    # color (4 / 4)
+    val = _fast_to_bin(obj.colour, 4)
+    # layer (2 / 4)
+    val = val + layer_code[:2]
     return val
 
 
@@ -73,27 +87,48 @@ def encode_line(line: Line, mode: Union[int, str] = 2) -> array:
     val = encode_basic(data, mode, line)
     # -- bit 14-22: 起始角度, 单位: °, 范围 [0, 360]
     # -- bit 23-31: 终止角度, 单位: °, 范围 [0, 360]
-    val <<= 18
+    data.append(int(val, 2))
+    data.append(0)
+    data.append(0)
 
-    data.extend(val.to_bytes(4, "little"))
+    # byte 5
+    # -- bit 0-8: 线宽 (8 / 10)
+    data.append(line.width & 0b0011111111)
+    # byte 6
+    # -- bit 0-6: 起点 x 坐标 (6 / 11)
+    val = line.start_x & 0x00000111111
+    # -- bit 6-8: 线宽 (2 / 10)
+    val = (val << 2) + (line.width >> 8)
+    data.append(val)
+    # byte 7
+    # -- bit 0-3: 起点 y 坐标 (3 / 11)
+    val = line.start_y & 0b111
+    # -- bit 3-8: 起点 x 坐标 (5 / 11)
+    val = (val << 5) + (line.start_x >> 6)
+    data.append(val)
+    # byte 8
+    # -- 起点 y 坐标 (8 / 11)
+    data.append(line.start_y >> 3)
 
-    # 2. 4 byte2
-    # -- bit 0-9: 线宽
-    val = line.width
-    # -- bit 10-20: 起点 x 坐标
-    val = (val << 11) + line.start_x
-    # -- bit 21-31: 起点 y 坐标
-    val = (val << 11) + line.start_y
-    data.extend(val.to_bytes(4, "little"))
-
-    # 3. 4 byte
-    # -- bit 0-9: 字体大小或者半径
-    val = 0
-    # -- bit 10-20: 终点 x 坐标
-    val = (val << 11) + line.end_x
-    # -- bit 21-31: 终点 y 坐标
-    val = (val << 11) + line.end_y
-    data.extend(val.to_bytes(4, "little"))
+    # byte 9
+    # -- bit 0-8: 字体大小或者半径 (8 / 10)
+    data.append(0)
+    # byte 10
+    # -- bit 0-6: 终点 x 坐标 (6 / 11)
+    val = line.end_x & 0x00000111111
+    # -- bit 6-8: 字体大小或者半径 (2 / 10)
+    val <<= 2
+    data.append(val)
+    # byte 11
+    # -- bit 0-3: 终点 y 坐标 (3 / 11)
+    val = line.end_y & 0b111
+    # -- bit 3-8: 终点 x 坐标 (5 / 11)
+    print(line.end_x)
+    val = (val << 5) + (line.end_x >> 6)
+    data.append(val)
+    # -- bit 24-32: 终点 y 坐标 (8 / 11)
+    print(line.end_y)
+    data.append(line.end_y >> 3)
 
     return data
 
