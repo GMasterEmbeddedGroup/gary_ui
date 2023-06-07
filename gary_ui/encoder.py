@@ -1,10 +1,12 @@
 """
 将图像类转换为数据
 """
+import dataclasses
 from copy import copy
 from array import array
-from typing import Union
+from typing import Union, Optional
 from functools import singledispatch
+from dataclasses import dataclass
 
 from .ui_objects import Line, Rectangle, Cycle, Float, Sentence
 
@@ -85,56 +87,54 @@ def encode_line(line: Line, mode: Union[int, str] = 2) -> array:
     data = array("B", [])
     # 1. 4 byte
     val = encode_basic(data, mode, line)
-    # -- bit 14-22: 起始角度, 单位: °, 范围 [0, 360]
-    # -- bit 23-31: 终止角度, 单位: °, 范围 [0, 360]
-    data.append(int(val, 2))
-    data.append(0)
-    data.append(0)
-
-    # byte 5
-    # -- bit 0-8: 线宽 (8 / 10)
-    data.append(line.width & 0b0011111111)
-    # byte 6
-    # -- bit 0-6: 起点 x 坐标 (6 / 11)
-    val = line.start_x & 0x00000111111
-    # -- bit 6-8: 线宽 (2 / 10)
-    val = (val << 2) + (line.width >> 8)
-    data.append(val)
-    # byte 7
-    # -- bit 0-3: 起点 y 坐标 (3 / 11)
-    val = line.start_y & 0b111
-    # -- bit 3-8: 起点 x 坐标 (5 / 11)
-    val = (val << 5) + (line.start_x >> 6)
-    data.append(val)
-    # byte 8
-    # -- 起点 y 坐标 (8 / 11)
-    data.append(line.start_y >> 3)
-
-    # byte 9
-    # -- bit 0-8: 字体大小或者半径 (8 / 10)
-    data.append(0)
-    # byte 10
-    # -- bit 0-6: 终点 x 坐标 (6 / 11)
-    val = line.end_x & 0x00000111111
-    # -- bit 6-8: 字体大小或者半径 (2 / 10)
-    val <<= 2
-    data.append(val)
-    # byte 11
-    # -- bit 0-3: 终点 y 坐标 (3 / 11)
-    val = line.end_y & 0b111
-    # -- bit 3-8: 终点 x 坐标 (5 / 11)
-    print(line.end_x)
-    val = (val << 5) + (line.end_x >> 6)
-    data.append(val)
-    # -- bit 24-32: 终点 y 坐标 (8 / 11)
-    print(line.end_y)
-    data.append(line.end_y >> 3)
+    main_encoder(data, val, **dataclasses.asdict(line))
 
     return data
 
 
+def main_encoder(data: array, head: str, mapping: Optional[dict] = None, **kwargs):
+    """
+    一个重构的尝试
+    head: basic_encode 的返回值
+    mapping: 将 kwargs 的某个值映射为对应的参数
+    """
+    keys = dict(start_angle=0, end_angle=0, width=0, start_x=0, start_y=0, radius=0, end_x=0, end_y=0)
+    keys.update(kwargs)
+
+    if mapping:
+        for k, key in mapping.items():
+            if k in kwargs:
+                keys[key] = kwargs[k]
+
+    start_angle_code = _fast_to_bin(keys["start_angle"], 9)
+    end_angle_code = _fast_to_bin(keys["end_angle"], 9)
+    width_code = _fast_to_bin(keys["width"], 10)
+    start_x_code = _fast_to_bin(keys["start_x"], 11)
+    start_y_code = _fast_to_bin(keys["start_y"], 11)
+    radius_code = _fast_to_bin(keys["radius"], 10)
+    end_x_code = _fast_to_bin(keys["end_x"], 11)
+    end_y_code = _fast_to_bin(keys["end_y"], 11)
+
+    extend = [int(i, 2) for i in [
+        start_angle_code[-2:] + head,
+        end_angle_code[-1] + start_angle_code[:7],
+        end_angle_code[:-1],
+        width_code[-8:],
+        start_x_code[-6:] + width_code[:2],
+        start_y_code[-3:] + start_x_code[:5],
+        start_y_code[:8],
+        radius_code[-8:],
+        end_x_code[-6:] + radius_code[:2],
+        end_y_code[-3:] + end_x_code[:5],
+        end_y_code[:8],
+    ]
+              ]
+
+    data.extend(extend)
+
+
 @encode.register
-def encode_rectangle(rectangle: Rectangle, mode: int = 2) -> array:
+def encode_rectangle(rectangle: Rectangle, mode: Union[int, str] = 2) -> array:
     """
     将矩形对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -142,26 +142,16 @@ def encode_rectangle(rectangle: Rectangle, mode: int = 2) -> array:
     :return:
     """
     data = array("B", [])
-    # 1. 4 byte
-    val = encode_basic(data, mode, rectangle) << 18
-    data.extend(val.to_bytes(4, "little"))
-
-    # 2. 4 byte
-    # -- bit 0-9: 线宽
-    val = (((rectangle.width << 11) + rectangle.start_x) << 11) + rectangle.start_y
-    data.extend(val.to_bytes(4, "little"))
-
-    # 3. 4 byte
-    # -- bit 0-9: 字体大小或者半径
-    # -- bit 10-20: 终点 x 坐标
-    val = (rectangle.diagonal_vertex_x << 11) + rectangle.diagonal_vertex_y
-    data.extend(val.to_bytes(4, "little"))
+    val = encode_basic(data, mode, rectangle)
+    main_encoder(data, val,
+                 {"diagonal_vertex_x": "end_x", "diagonal_vertex_y": "end_y"},
+                 **dataclasses.asdict(rectangle))
 
     return data
 
 
 @encode.register
-def encode_cycle(cycle: Cycle, mode: int = 2) -> array:
+def encode_cycle(cycle: Cycle, mode: Union[int, str] = 2) -> array:
     """
     将正圆对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -170,24 +160,16 @@ def encode_cycle(cycle: Cycle, mode: int = 2) -> array:
     """
     data = array("B", [])
     # 1. 4 byte
-    val = encode_basic(data, mode, cycle) << 18
-    data.extend(val.to_bytes(4, "little"))
-
-    # 2. 4 byte
-    # -- bit 0-9: 线宽
-    val = (((cycle.width << 11) + cycle.centre_x) << 11) + cycle.centre_y
-    data.extend(val.to_bytes(4, "little"))
-
-    # 3. 4 byte
-    # -- bit 0-9: 字体大小或者半径
-    val = cycle.radius << 22
-    data.extend(val.to_bytes(4, "little"))
+    val = encode_basic(data, mode, cycle)
+    main_encoder(data, val,
+                 {"centre_x": "start_x", "centre_y": "start_y"},
+                 **dataclasses.asdict(cycle))
 
     return data
 
 
 @encode.register
-def encode_float(float_: Float, mode: int = 2) -> array:
+def encode_float(float_: Float, mode: Union[int, str] = 2) -> array:
     """
     将正圆对象转码为绘制命令, 若想阅读代码, 请参考 "encode_line"
     :param mode:
@@ -195,22 +177,14 @@ def encode_float(float_: Float, mode: int = 2) -> array:
     :return:
     """
     data = array("B", [])
-    # 1. 4 byte
+
     val = encode_basic(data, mode, float_)
-    # -- bit 14-22: 字体大小
-    val = (val << 9) + float_.font_size
-    # -- bit 23-31: 小数位有效个数
-    val = (val << 9) + float_.significant_digits
-    data.extend(val.to_bytes(4, "little"))
 
-    # 2. 4 byte
-    val = (((float_.width << 11) + float_.start_x) << 11) + float_.start_y
-    data.extend(val.to_bytes(4, "little"))
-
-    # 3. 4 byte
-    val = int(round(float_.value, 4) * 1000) % (2 ** 31) * (-1 if val < 0 else 1)
-    data.extend(val.to_bytes(4, "little"))
-
+    main_encoder(data, val,
+                 {"font_size": "start_angle", "significant_digits": "end_angle"},
+                 **dataclasses.asdict(float_))
+    del data[-4:]
+    data.extend(round(float_.value * 1000).to_bytes(4, 'little'))
     return data
 
 
@@ -219,21 +193,14 @@ def encode_sentence(sentence: Sentence, mode: int = 2) -> array:
     将 Sentence 对象转码为绘制命令
     """
     data = array("B", [])
-    # 1. 4 byte
+
     val = encode_basic(data, mode, sentence)
-    # -- bit 14-22: 字体大小 and 字符长度
-    val = (((val << 9) + sentence.font_size) << 9) + sentence.length
-    data.extend(val.to_bytes(4, "little"))
-
-    # 2. 4 byte
-    val = (((sentence.width << 11) + sentence.start_x) << 11) + sentence.start_y
-    data.extend(val.to_bytes(4, "little"))
-
-    # 3. 4 byte
-    data.extend(bytes(4))
+    main_encoder(data, val,
+                 {"font_size": "start_angle", "length": "end_angle"},
+                 **dataclasses.asdict(sentence))
 
     # 4. the words
-    data.extend(sentence.string[:sentence.length])
+    data.extend(sentence.string[:sentence.length].encode("ascii"))
     # 补全剩余长度
     sentence_length = len(sentence.string) if sentence.length is None else sentence.length
     if sentence_length < 30:

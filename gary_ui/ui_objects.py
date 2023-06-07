@@ -82,7 +82,7 @@ class Float(GraphicBasic):
     font_size: int
     significant_digits: int
     value: float
-    graphic_type = 3
+    graphic_type = 5
 
 
 @dataclass(frozen=True)

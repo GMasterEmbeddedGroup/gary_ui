@@ -37,6 +37,22 @@ typedef struct
 } __attribute__((packed)) graphic_data_struct_t;
 
 
+typedef struct
+{
+    uint8_t graphic_name[3];
+    uint32_t operate_type:3;
+    uint32_t graphic_type:3;
+    uint32_t layer:4;
+    uint32_t color:4;
+    uint32_t start_angle:9;
+    uint32_t end_angle:9;
+    uint32_t width:10;
+    uint32_t start_x:11;
+    uint32_t start_y:11;
+    uint32_t value:24;
+} __attribute__((packed)) graphic_float_struct_t;
+
+
 int main() {
     graphic_data_struct_t val = {0};
 
@@ -56,5 +72,24 @@ int main() {
 
     print_hex(&val, sizeof(graphic_data_struct_t) / sizeof(unsigned char));
     print_hex_real(&val, sizeof(graphic_data_struct_t) / sizeof(unsigned char));
+
+    printf("\n\t---\n\n");
+
+    graphic_float_struct_t f = {0};
+
+    memcpy(&f.graphic_name, "flt", 3);
+    f.operate_type = 1;
+    f.graphic_type = 5;
+    f.layer = 3;
+    f.color = 1;
+    f.start_angle = 10;
+    f.end_angle = 4;
+    f.width = 5;
+    f.start_x = 100;
+    f.start_y = 111;
+    f.value = 1500;
+
+//    print_hex(&f, sizeof(graphic_float_struct_t) / sizeof(unsigned char));
+    print_hex_real(&f, sizeof(graphic_float_struct_t) / sizeof(unsigned char));
     return 0;
 }
